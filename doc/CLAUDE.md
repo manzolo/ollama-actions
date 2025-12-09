@@ -52,10 +52,10 @@ make logs
 # Stop and remove volumes
 make clean
 
-# Alternative: using docker-compose directly
-docker-compose build
-docker-compose up -d
-docker-compose down
+# Alternative: using docker compose directly
+docker compose build
+docker compose up -d
+docker compose down
 ```
 
 ### Testing
@@ -79,14 +79,14 @@ make test-crud-simple
 make list-users
 
 # Run Python unit tests
-docker-compose exec agent pytest tests/
+docker compose exec agent pytest tests/
 make exec-agent CMD="pytest tests/"
 
 # Run specific test file
-docker-compose exec agent pytest tests/test_tools.py
+docker compose exec agent pytest tests/test_tools.py
 
 # Run single test
-docker-compose exec agent pytest tests/test_tools.py::test_validate_bash_command_allowed
+docker compose exec agent pytest tests/test_tools.py::test_validate_bash_command_allowed
 
 # Manual API test - Agent
 curl -X POST http://localhost:${APP_PORT}/chat \

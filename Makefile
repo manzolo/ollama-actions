@@ -50,11 +50,11 @@ help:
 # Development commands
 build:
 	@echo "Building Docker containers..."
-	docker-compose build
+	docker compose build
 
 up:
 	@echo "Starting services..."
-	docker-compose up -d
+	docker compose up -d
 	@echo ""
 	@echo "Services started! Use 'make logs' to view logs or 'make status' to check status."
 	@echo "Agent available at: http://localhost:${APP_PORT}"
@@ -62,27 +62,27 @@ up:
 
 down:
 	@echo "Stopping services..."
-	docker-compose down
+	docker compose down
 
 restart: down up
 
 clean:
 	@echo "Stopping services and removing volumes..."
-	docker-compose down -v
+	docker compose down -v
 	@echo "Cleanup complete!"
 
 # Logs
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 logs-agent:
-	docker-compose logs -f agent
+	docker compose logs -f agent
 
 logs-ollama:
-	docker-compose logs -f ollama
+	docker compose logs -f ollama
 
 logs-user-service:
-	docker-compose logs -f user-service
+	docker compose logs -f user-service
 
 # Testing
 test:
@@ -126,25 +126,25 @@ health:
 	@curl -s http://localhost:${USER_SERVICE_PORT}/ | python3 -m json.tool || echo "User Service not responding"
 
 status:
-	@docker-compose ps
+	@docker compose ps
 
 ps:
-	@docker-compose ps
+	@docker compose ps
 
 # Shell access
 shell-agent:
 	@echo "Opening shell in agent container..."
-	docker-compose exec agent /bin/bash
+	docker compose exec agent /bin/bash
 
 shell-user-service:
 	@echo "Opening shell in user-service container..."
-	docker-compose exec user-service /bin/bash
+	docker compose exec user-service /bin/bash
 
 exec-agent:
-	@docker-compose exec agent $(CMD)
+	@docker compose exec agent $(CMD)
 
 exec-user-service:
-	@docker-compose exec user-service $(CMD)
+	@docker compose exec user-service $(CMD)
 
 # Quick start
 install: build up

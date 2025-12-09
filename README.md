@@ -112,16 +112,16 @@
 
 ```bash
 # Build
-docker-compose build
+docker compose build
 
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Check logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop services
-docker-compose down
+docker compose down
 ```
 
 ## 💻 CLI Tool

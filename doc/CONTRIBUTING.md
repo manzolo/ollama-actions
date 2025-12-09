@@ -20,7 +20,7 @@ Before creating bug reports, please check the existing issues to avoid duplicate
 - **Describe the exact steps to reproduce the problem**
 - **Provide specific examples** (code snippets, curl commands, etc.)
 - **Describe the behavior you observed and what you expected**
-- **Include logs** from `docker-compose logs`
+- **Include logs** from `docker compose logs`
 - **Specify your environment** (OS, Docker version, model being used)
 
 ### Suggesting Enhancements

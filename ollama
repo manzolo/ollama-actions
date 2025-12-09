@@ -83,8 +83,8 @@ process_prompt() {
         echo
         echo -e "\033[91m✗ The CLI tool failed inside the container (Exit Code: $DOCKER_EXIT_CODE).\033[0m"
         echo -e "\033[93mThis often means it couldn't connect to the 'agent' service.\033[0m"
-        echo -e "  1. Ensure your services are running with: \033[1mdocker-compose up -d\033[0m"
-        echo -e "  2. Check the agent's logs for errors with: \033[1mdocker-compose logs agent\033[0m"
+        echo -e "  1. Ensure your services are running with: \033[1mdocker compose up -d\033[0m"
+        echo -e "  2. Check the agent's logs for errors with: \033[1mdocker compose logs agent\033[0m"
         return # Exit process_prompt, no retry on agent failure
     fi
 
@@ -92,7 +92,7 @@ process_prompt() {
         echo
         echo -e "\033[91m✗ Failed to get a command from the agent.\033[0m"
         echo -e "\033[93mThe agent responded, but did not suggest a command to run.\033[0m"
-        echo -e "  - You can check the agent's logs for more details: \033[1mdocker-compose logs agent\033[0m"
+        echo -e "  - You can check the agent's logs for more details: \033[1mdocker compose logs agent\033[0m"
         return # Exit process_prompt, no retry on empty command
     fi
 
@@ -149,12 +149,12 @@ process_prompt() {
 # Run pre-flight checks once
 if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
     echo -e "\033[91mError: Docker network '$NETWORK_NAME' not found.\033[0m"
-    echo "Please run 'docker-compose up -d' to create the network and services."
+    echo "Please run 'docker compose up -d' to create the network and services."
     exit 1
 fi
 if ! docker inspect --type=image "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "Info: Docker image '$IMAGE_NAME' not found. Building it now..."
-    docker-compose build ollama-cli
+    docker compose build ollama-cli
     if [ $? -ne 0 ]; then
         echo -e "\033[91mError: Failed to build '$IMAGE_NAME'.\033[0m"
         exit 1
