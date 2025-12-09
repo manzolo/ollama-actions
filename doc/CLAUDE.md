@@ -132,11 +132,29 @@ make exec-user-service CMD="ls -la"
 
 **Environment Variables** (configured in `.env` file):
 - `MODEL_NAME`: LLM model to use (default: `llama3.2`; alternatives: `llama3.1`, `llama3.2:1b`, `tinyllama`)
-- `APP_PORT`: Agent service port (default: `5000`)
-- `USER_SERVICE_PORT`: User service port (default: `5001`)
-- `OLLAMA_HOST`: Ollama endpoint (default: `http://ollama:11434`)
+- `APP_PORT`: Agent service port (default: `8000`)
+- `USER_SERVICE_PORT`: User service port (default: `8001`)
+- `OLLAMA_HOST`: Ollama endpoint (default: `http://ollama:11434`; for external Ollama: `http://host.docker.internal:11434`)
+- `COMPOSE_PROFILES`: Set to `local-ollama` to start local Ollama container, leave empty for external Ollama
 
 **Important**: Ports are configured via `.env` file and read at runtime. Never hardcode ports in source files.
+
+**Switching Between Local and External Ollama:**
+```bash
+# Use local Ollama container
+make use-local-ollama
+make restart
+
+# Use external Ollama instance
+make use-external-ollama
+# Edit .env to configure your external URL
+make restart
+
+# Check current configuration
+make show-ollama-config
+```
+
+The system uses Docker Compose profiles to conditionally start the Ollama container only when needed.
 
 **Safety Allowlists** (in `agent/src/tools.py`):
 - `ALLOWED_COMMANDS`: Bash executables the agent can run (e.g., `ls`, `cat`, `mkdir`)

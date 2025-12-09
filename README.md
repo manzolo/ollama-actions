@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 
-> A production-ready LLM-powered agent that can reason via Ollama and execute actions (Bash commands, HTTP requests) in a controlled, safe environment.
+> A LLM-powered agent that can reason via Ollama and execute actions (Bash commands, HTTP requests) in a controlled, safe environment.
 
 ## ✨ Features
 
@@ -184,7 +184,7 @@ Options:
 ✅ **Dry-run mode** - Test safely without execution
 ✅ **Visible commands** - Shows exactly what will run
 
-📖 **Full CLI documentation:** [CLI_USAGE.md](CLI_USAGE.md)
+📖 **Full CLI documentation:** [CLI_USAGE.md](doc/CLI_USAGE.md)
 
 ## 💡 Usage Examples
 
@@ -234,8 +234,38 @@ Create or edit `.env` file:
 ```env
 APP_PORT=8000              # Agent service port
 USER_SERVICE_PORT=8001     # User service port
+OLLAMA_HOST=http://ollama:11434  # Ollama endpoint
 MODEL_NAME=llama3.2        # LLM model to use
 ```
+
+### Switching Between Local and External Ollama
+
+**First Time Setup:**
+```bash
+# Copy the example file
+cp .env.example .env
+```
+
+**Use Local Ollama Container (default):**
+```bash
+make use-local-ollama  # Auto-creates .env.local if needed
+make restart
+```
+
+**Use External Ollama Instance:**
+```bash
+make use-external-ollama  # Creates .env.external from template
+# Edit .env.external with your actual Ollama URL and model
+make use-external-ollama  # Apply the configuration
+make restart
+```
+
+**Check Current Configuration:**
+```bash
+make show-ollama-config
+```
+
+**Security Note:** The actual `.env`, `.env.local`, and `.env.external` files are in `.gitignore`. Only `.example` templates are committed to git. This keeps your credentials and server URLs private.
 
 **Available Models:**
 - `llama3.2` - ⭐ Recommended (3B params, best balance)
@@ -403,8 +433,10 @@ For production deployment, consider:
 
 ## 📖 Documentation
 
-- [CLAUDE.md](CLAUDE.md) - Detailed development guide
-- [MODEL_COMPARISON.md](MODEL_COMPARISON.md) - LLM model comparison
+- [CLAUDE.md](doc/CLAUDE.md) - Detailed development guide
+- [MODEL_COMPARISON.md](doc/MODEL_COMPARISON.md) - LLM model comparison
+- [CLI_USAGE.md](doc/CLI_USAGE.md) - CLI tool documentation
+- [CONTRIBUTING.md](doc/CONTRIBUTING.md) - Contributing guidelines
 
 ## 🤝 Contributing
 

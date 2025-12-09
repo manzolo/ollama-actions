@@ -11,7 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://ollama:11434")
-MODEL_NAME = os.environ.get("MODEL_NAME", "llama3.1")
+MODEL_NAME = os.environ.get("MODEL_NAME", "llama3.2")
 APP_PORT = int(os.environ.get("APP_PORT", 5000))
 USER_SERVICE_PORT = int(os.environ.get("USER_SERVICE_PORT", 5001))
 USER_SERVICE_HOST = f"http://user-service:{USER_SERVICE_PORT}"
@@ -151,9 +151,17 @@ def handle_chat():
     llm_response_text = chat_with_ollama(user_prompt)
     print(f"LLM Response: {llm_response_text}")
 
-    # 2. Parse JSON
+    # 2. Parse JSON (handle markdown-wrapped JSON)
     try:
-        action_plan = json.loads(llm_response_text)
+        # Try to extract JSON from markdown code blocks if present
+        import re
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', llm_response_text, re.DOTALL)
+        if json_match:
+            json_text = json_match.group(1).strip()
+        else:
+            json_text = llm_response_text.strip()
+
+        action_plan = json.loads(json_text)
     except json.JSONDecodeError:
         return jsonify({
             "error": "Failed to parse LLM response as JSON",

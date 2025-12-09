@@ -1,6 +1,9 @@
 services:
   ollama:
     image: ollama/ollama:latest
+    container_name: ollama
+    profiles:
+      - local-ollama # Only starts when 'local-ollama' profile is active
     ports:
       - "11434:11434"
     volumes:
@@ -9,24 +12,25 @@ services:
       - llm_net
 
   agent:
+    container_name: agent
     build:
       context: ./agent
       args:
         - APP_PORT=${APP_PORT}
     depends_on:
-      - ollama
       - user-service
     ports:
       - "${APP_PORT}:${APP_PORT}"
     env_file:
       - .env
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - MODEL_NAME=${MODEL_NAME}
     networks:
       - llm_net
 
   user-service:
+    container_name: user-service
     build:
       context: ./user-service
       args:
@@ -39,6 +43,7 @@ services:
       - llm_net
 
   ollama-cli:
+    container_name: ollama-cli
     build:
       context: .
       dockerfile: ollama-cli.Dockerfile
@@ -49,7 +54,7 @@ services:
     environment:
       - APP_PORT=${APP_PORT:-8000}
     working_dir: /app
-    entrypoint: ["python3", "ollama-cli.py", "--agent-url", "http://agent:${APP_PORT:-8000}"]
+    entrypoint: [ "python3", "ollama-cli.py", "--agent-url", "http://agent:${APP_PORT:-8000}" ]
 
 networks:
   llm_net:

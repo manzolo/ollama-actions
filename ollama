@@ -65,8 +65,18 @@ process_prompt() {
     GENERATED_COMMAND=$(docker run --rm \
       --network "$NETWORK_NAME" \
       -e "APP_PORT=${APP_PORT}" \
-      "$IMAGE_NAME" --agent-url "http://agent:${APP_PORT}" --get-command "$original_prompt_string") # Use original_prompt_string
+      "$IMAGE_NAME" --agent-url "http://agent:${APP_PORT}" --get-command "$original_prompt_string" 2>&1) # Use original_prompt_string
     local DOCKER_EXIT_CODE=$?
+
+    # Check if the output is JSON (indicating an API action was already executed)
+    if echo "$GENERATED_COMMAND" | python3 -m json.tool > /dev/null 2>&1; then
+        echo
+        echo -e "\033[92m✓ Agent executed API action\033[0m"
+        echo
+        # Display the result (output is already JSON from the API call)
+        echo "$GENERATED_COMMAND" | python3 -m json.tool
+        return
+    fi
 
     # Check for errors from the container
     if [ $DOCKER_EXIT_CODE -ne 0 ]; then
@@ -97,6 +107,14 @@ process_prompt() {
     fi
 
     # 3. Handle confirmation with 'Y/n/r'
+    # Skip confirmation if AUTO_CONFIRM is true
+    if [ "$AUTO_CONFIRM" = true ]; then
+      echo -e "\033[92m🚀 Executing on host...\033[0m"
+      echo
+      eval "$GENERATED_COMMAND"
+      return # Exit process_prompt
+    fi
+
     local REPLY_CONFIRMATION
     printf "\033[94mExecute this command on your host? [Y/n/r]: \033[0m"
     read -r REPLY_CONFIRMATION
@@ -149,8 +167,7 @@ if [ "$INTERACTIVE_MODE" = true ]; then
   # --- Interactive Mode ---
   echo -e "\033[92mEntering interactive mode. Type 'exit', 'quit', or Ctrl+D to leave.\033[0m"
   while true; do
-    printf "\033[95mollama> \033[0m"
-    read -e user_input
+    read -e -r -p $'\033[95mollama> \033[0m' user_input
     read_status=$?
 
     if [ "$read_status" -ne 0 ]; then # Check for EOF (Ctrl+D)

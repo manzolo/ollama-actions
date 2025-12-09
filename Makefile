@@ -21,10 +21,16 @@ help:
 	@echo "    make logs-ollama        - View Ollama service logs"
 	@echo "    make logs-user-service  - View user-service logs"
 	@echo ""
+	@echo "  Ollama Configuration:"
+	@echo "    make use-local-ollama    - Switch to local Ollama container"
+	@echo "    make use-external-ollama - Switch to external Ollama"
+	@echo "    make show-ollama-config  - Show current Ollama configuration"
+	@echo ""
 	@echo "  Testing:"
 	@echo "    make test               - Run all tests"
 	@echo "    make test-direct        - Test direct API endpoints (fast, no LLM)"
 	@echo "    make test-agent         - Test agent with LLM (bash, API, user management)"
+	@echo "    make test-ollama-cli    - Test ollama CLI wrapper"
 	@echo "    make test-users         - Test user service integration"
 	@echo "    make test-crud          - Test full CRUD operations"
 	@echo "    make test-crud-simple   - Test CRUD with natural language (interactive)"
@@ -80,11 +86,7 @@ logs-user-service:
 
 # Testing
 test:
-	@echo "Waiting for services to be ready..."
-	@sleep 5
-	@make test-direct test-agent
-	@echo ""
-	@echo "All tests completed!"
+	@bash scripts/run_all_tests.sh
 
 test-direct:
 	@echo "Testing direct API endpoints..."
@@ -93,6 +95,10 @@ test-direct:
 test-agent:
 	@echo "Testing agent basic functionality..."
 	@bash scripts/test_agent.sh
+
+test-ollama-cli:
+	@echo "Testing ollama CLI wrapper..."
+	@bash scripts/test_ollama_cli.sh
 
 test-users:
 	@echo "Testing user service integration..."
@@ -147,3 +153,52 @@ install: build up
 	@echo "Waiting for services to be ready..."
 	@sleep 5
 	@make health
+
+# Ollama Configuration
+use-local-ollama:
+	@echo "Switching to LOCAL Ollama..."
+	@if [ ! -f .env.local ]; then \
+		echo "Creating .env.local from template..."; \
+		cp .env.local.example .env.local; \
+	fi
+	@cp .env.local .env
+	@echo "✓ Configuration updated to use local Ollama container"
+	@echo ""
+	@echo "OLLAMA_HOST=http://ollama:11434"
+	@echo "MODEL_NAME=llama3.2"
+	@echo "COMPOSE_PROFILES=local-ollama"
+	@echo ""
+	@echo "Run 'make restart' to apply changes"
+
+use-external-ollama:
+	@echo "Switching to EXTERNAL Ollama..."
+	@if [ ! -f .env.external ]; then \
+		echo "Creating .env.external from template..."; \
+		cp .env.external.example .env.external; \
+		echo ""; \
+		echo "⚠️  IMPORTANT: Edit .env.external with your actual Ollama configuration"; \
+		echo "   Then run this command again"; \
+		exit 1; \
+	fi
+	@cp .env.external .env
+	@echo "✓ Configuration updated to use external Ollama"
+	@echo ""
+	@echo "Current configuration:"
+	@grep "OLLAMA_HOST=" .env || echo "OLLAMA_HOST not set"
+	@grep "MODEL_NAME=" .env || echo "MODEL_NAME not set"
+	@echo ""
+	@echo "Run 'make restart' to apply changes"
+
+show-ollama-config:
+	@echo "Current Ollama Configuration:"
+	@echo "=============================="
+	@grep "OLLAMA_HOST=" .env || echo "OLLAMA_HOST not set"
+	@grep "MODEL_NAME=" .env || echo "MODEL_NAME not set"
+	@grep "COMPOSE_PROFILES=" .env || echo "COMPOSE_PROFILES not set (external mode)"
+	@echo ""
+	@if grep -q "^COMPOSE_PROFILES=local-ollama" .env 2>/dev/null; then \
+		echo "Mode: LOCAL Ollama (container will start)"; \
+	else \
+		echo "Mode: EXTERNAL Ollama (no local container)"; \
+	fi
+

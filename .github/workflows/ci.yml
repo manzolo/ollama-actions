@@ -25,6 +25,7 @@ jobs:
           cat > .env << EOF
           APP_PORT=8000
           USER_SERVICE_PORT=8001
+          OLLAMA_HOST=http://ollama:11434
           MODEL_NAME=llama3.2
           EOF
 
@@ -94,6 +95,11 @@ jobs:
         run: |
           echo "Running agent tests..."
           bash scripts/test_agent.sh
+
+      - name: Run ollama CLI tests
+        run: |
+          echo "Running ollama CLI integration tests..."
+          bash scripts/test_ollama_cli.sh
 
       - name: Run Python unit tests
         run: |
