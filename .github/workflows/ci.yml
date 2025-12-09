@@ -12,6 +12,8 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: ollama-actions
 
     steps:
       - name: Checkout code
@@ -28,6 +30,7 @@ jobs:
           COMPOSE_PROFILES=local-ollama
           OLLAMA_HOST=http://ollama:11434
           MODEL_NAME=llama3.2
+          COMPOSE_PROJECT_NAME=ollama-actions
           EOF
 
       - name: Build Docker images
@@ -101,11 +104,29 @@ jobs:
         run: |
           echo "Running ollama CLI integration tests..."
 
+          # Make scripts executable
+          chmod +x ollama ollama-cli.py
+
           # Verify agent is responding
           echo "Testing agent connectivity..."
           curl -f http://localhost:8000/health || exit 1
 
-          # Run CLI tests (uses ollama-cli.py directly in CI)
+          # Debug: Show Docker networks and images
+          echo "Docker networks:"
+          docker network ls | grep ollama || echo "No ollama networks found"
+
+          echo "Docker images:"
+          docker images | grep ollama || echo "No ollama images found"
+
+          # Pre-build the ollama-cli image to avoid build issues during tests
+          echo "Pre-building ollama-cli image..."
+          docker compose build ollama-cli
+
+          # Verify image was built
+          echo "Verifying ollama-cli image..."
+          docker images | grep ollama-cli
+
+          # Run CLI tests
           bash scripts/test_ollama_cli.sh
 
       - name: Run Python unit tests
