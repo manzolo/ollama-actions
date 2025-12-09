@@ -43,7 +43,8 @@ fi
 APP_PORT=${APP_PORT:-8000}
 PROJECT_NAME=$(basename "$PWD")
 NETWORK_NAME="${PROJECT_NAME}_llm_net"
-IMAGE_NAME="${PROJECT_NAME}_ollama-cli"
+# Docker Compose converts underscores to hyphens in image names
+IMAGE_NAME="${PROJECT_NAME//_/-}-ollama-cli"
 
 
 # --- Core Logic Function ---
@@ -157,6 +158,14 @@ if ! docker inspect --type=image "$IMAGE_NAME" >/dev/null 2>&1; then
     docker compose build ollama-cli
     if [ $? -ne 0 ]; then
         echo -e "\033[91mError: Failed to build '$IMAGE_NAME'.\033[0m"
+        exit 1
+    fi
+
+    # Verify the image was created with the correct name
+    if ! docker inspect --type=image "$IMAGE_NAME" >/dev/null 2>&1; then
+        echo -e "\033[91mError: Image built but not found as '$IMAGE_NAME'.\033[0m"
+        echo "Available ollama images:"
+        docker images | grep -E "ollama|IMAGE"
         exit 1
     fi
 fi
