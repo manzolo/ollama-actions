@@ -25,17 +25,18 @@ jobs:
           cat > .env << EOF
           APP_PORT=8000
           USER_SERVICE_PORT=8001
+          COMPOSE_PROFILES=local-ollama
           OLLAMA_HOST=http://ollama:11434
           MODEL_NAME=llama3.2
           EOF
 
       - name: Build Docker images
         run: |
-          docker-compose build
+          docker compose build
 
       - name: Start services
         run: |
-          docker-compose up -d
+          docker compose up -d
 
       - name: Wait for services to be ready
         run: |
@@ -44,7 +45,7 @@ jobs:
 
           # Wait for Ollama
           for i in {1..30}; do
-            if docker-compose exec -T ollama ollama list > /dev/null 2>&1; then
+            if docker compose exec -T ollama ollama list > /dev/null 2>&1; then
               echo "Ollama is ready"
               break
             fi
@@ -83,7 +84,7 @@ jobs:
       - name: Pull Llama 3.2 model
         run: |
           echo "Pulling Llama 3.2 model..."
-          docker-compose exec -T ollama ollama pull llama3.2
+          docker compose exec -T ollama ollama pull llama3.2
           echo "Model pulled successfully"
 
       - name: Run direct API tests
@@ -104,22 +105,22 @@ jobs:
       - name: Run Python unit tests
         run: |
           echo "Running Python unit tests..."
-          docker-compose exec -T agent pytest tests/ -v
+          docker compose exec -T agent pytest tests/ -v
 
       - name: Show logs on failure
         if: failure()
         run: |
           echo "=== Agent Logs ==="
-          docker-compose logs agent
+          docker compose logs agent
           echo "=== Ollama Logs ==="
-          docker-compose logs ollama
+          docker compose logs ollama
           echo "=== User Service Logs ==="
-          docker-compose logs user-service
+          docker compose logs user-service
 
       - name: Stop services
         if: always()
         run: |
-          docker-compose down -v
+          docker compose down -v
 
   lint:
     name: Lint Code
