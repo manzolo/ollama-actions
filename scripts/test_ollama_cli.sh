@@ -114,12 +114,17 @@ fi
 # Test 2: Create directory
 print_test 2 "Create directory"
 cd "$PROJECT_ROOT"
-"$OLLAMA_CLI" -y "create a directory called test_folder_cli_001" > /dev/null 2>&1
+OUTPUT=$("$OLLAMA_CLI" -y "create a directory called test_folder_cli_001" 2>&1)
+EXIT_CODE=$?
 if [ -d "test_folder_cli_001" ]; then
     print_result "pass" "Directory created successfully"
     print_data "Path" "test_folder_cli_001"
 else
     print_result "fail" "Directory not created"
+    if [ -n "$CI" ]; then
+        echo -e "${DIM}Exit code: $EXIT_CODE${NC}"
+        echo -e "${DIM}Output: $OUTPUT${NC}"
+    fi
 fi
 
 # Test 3: Delete directory
@@ -143,6 +148,7 @@ print_header "API Actions (User Management)"
 print_test 4 "Create new user via API"
 cd "$PROJECT_ROOT"
 USER_OUTPUT=$("$OLLAMA_CLI" -y "Add a user named CLI Test User from TestCity, email clitest@example.com" 2>&1)
+EXIT_CODE=$?
 if echo "$USER_OUTPUT" | grep -q "CLI Test User"; then
     USER_ID=$(echo "$USER_OUTPUT" | grep -o '"id": "[^"]*"' | head -1 | cut -d'"' -f4)
     print_result "pass" "User created successfully"
@@ -152,6 +158,10 @@ if echo "$USER_OUTPUT" | grep -q "CLI Test User"; then
 else
     print_result "fail" "User not created"
     USER_ID=""
+    if [ -n "$CI" ]; then
+        echo -e "${DIM}Exit code: $EXIT_CODE${NC}"
+        echo -e "${DIM}Output (first 500 chars): ${USER_OUTPUT:0:500}${NC}"
+    fi
 fi
 
 sleep 1

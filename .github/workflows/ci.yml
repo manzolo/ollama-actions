@@ -100,6 +100,17 @@ jobs:
       - name: Run ollama CLI tests
         run: |
           echo "Running ollama CLI integration tests..."
+          chmod +x ollama ollama-cli.py
+
+          # Verify agent is responding
+          echo "Testing agent connectivity..."
+          curl -f http://localhost:8000/health || exit 1
+
+          # Quick test of ollama CLI
+          echo "Testing ollama CLI..."
+          ./ollama --help || echo "Help command failed"
+
+          # Run CLI tests
           bash scripts/test_ollama_cli.sh
 
       - name: Run Python unit tests
