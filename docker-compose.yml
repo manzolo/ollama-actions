@@ -1,0 +1,46 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - llm_net
+
+  agent:
+    build:
+      context: ./agent
+      args:
+        - APP_PORT=${APP_PORT}
+    depends_on:
+      - ollama
+      - user-service
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL_NAME=${MODEL_NAME}
+    networks:
+      - llm_net
+
+  user-service:
+    build:
+      context: ./user-service
+      args:
+        - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+    ports:
+      - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
+    env_file:
+      - .env
+    networks:
+      - llm_net
+
+networks:
+  llm_net:
+    driver: bridge
+
+volumes:
+  ollama_data:
