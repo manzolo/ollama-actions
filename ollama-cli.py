@@ -173,6 +173,12 @@ Examples:
         help='Show full agent response'
     )
 
+    parser.add_argument(
+        '--get-command',
+        action='store_true',
+        help='Only print the generated command to stdout and exit'
+    )
+
     args = parser.parse_args()
 
     # Load configuration
@@ -180,13 +186,16 @@ Examples:
     if args.agent_url:
         agent_url = args.agent_url
 
-    # Print header
-    print(f"{Colors.HEADER}{Colors.BOLD}Ollama Actions CLI{Colors.ENDC}")
-    print(f"{Colors.OKCYAN}Prompt: {args.prompt}{Colors.ENDC}")
-    print()
+    # If just getting the command, skip all printing
+    if not args.get_command:
+        # Print header
+        print(f"{Colors.HEADER}{Colors.BOLD}Ollama Actions CLI{Colors.ENDC}")
+        print(f"{Colors.OKCYAN}Prompt: {args.prompt}{Colors.ENDC}")
+        print()
 
-    # Call agent
-    print(f"{Colors.OKBLUE}🤖 Asking agent...{Colors.ENDC}")
+        # Call agent
+        print(f"{Colors.OKBLUE}🤖 Asking agent...{Colors.ENDC}")
+
     response = call_agent(args.prompt, agent_url)
 
     if not response:
@@ -202,15 +211,21 @@ Examples:
     command = extract_command(response)
 
     if not command:
-        action = response.get('llm_plan', {}).get('action')
-        if action == 'api':
-            print(f"{Colors.WARNING}⚠ Agent suggested an API call, not a bash command.{Colors.ENDC}")
-            print(f"{Colors.OKCYAN}This CLI only executes local bash commands.{Colors.ENDC}")
-        else:
-            print(f"{Colors.FAIL}✗ Could not extract a valid command from agent response.{Colors.ENDC}")
-            if args.verbose is False:
-                print(f"{Colors.OKCYAN}Tip: Use --verbose to see full response{Colors.ENDC}")
+        if not args.get_command:
+            action = response.get('llm_plan', {}).get('action')
+            if action == 'api':
+                print(f"{Colors.WARNING}⚠ Agent suggested an API call, not a bash command.{Colors.ENDC}")
+                print(f"{Colors.OKCYAN}This CLI only executes local bash commands.{Colors.ENDC}")
+            else:
+                print(f"{Colors.FAIL}✗ Could not extract a valid command from agent response.{Colors.ENDC}")
+                if args.verbose is False:
+                    print(f"{Colors.OKCYAN}Tip: Use --verbose to see full response{Colors.ENDC}")
         sys.exit(1)
+
+    # If --get-command is used, just print the command and exit
+    if args.get_command:
+        print(command)
+        sys.exit(0)
 
     # Show command
     print(f"{Colors.OKGREEN}📋 Generated command:{Colors.ENDC}")

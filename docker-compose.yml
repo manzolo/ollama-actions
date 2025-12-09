@@ -38,6 +38,19 @@ services:
     networks:
       - llm_net
 
+  ollama-cli:
+    build:
+      context: .
+      dockerfile: ollama-cli.Dockerfile
+    depends_on:
+      - agent
+    networks:
+      - llm_net
+    environment:
+      - APP_PORT=${APP_PORT:-8000}
+    working_dir: /app
+    entrypoint: ["python3", "ollama-cli.py", "--agent-url", "http://agent:${APP_PORT:-8000}"]
+
 networks:
   llm_net:
     driver: bridge

@@ -1,5 +1,186 @@
 #!/bin/bash
 # Ollama Actions CLI wrapper script
+# This script can run in two modes:
+# 1. Single command: Executes one command and exits.
+# 2. Interactive: Enters a loop to process multiple commands.
 
+# Not using 'set -e' to provide more specific error messages.
+
+# --- Global Variables & Setup ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec python3 "$SCRIPT_DIR/ollama-cli.py" "$@"
+cd "$SCRIPT_DIR"
+
+# --- Argument Parsing ---
+DRY_RUN=false
+AUTO_CONFIRM=false
+INTERACTIVE_MODE=false
+PROMPT_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -i|--interactive)
+      INTERACTIVE_MODE=true
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    -y|--yes)
+      AUTO_CONFIRM=true
+      shift
+      ;;
+    *)
+      PROMPT_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# --- Load Environment & Set Variables ---
+if [ -f .env ]; then
+  export $(grep -E '^[A-Z_]+=' .env | xargs)
+fi
+APP_PORT=${APP_PORT:-8000}
+PROJECT_NAME=$(basename "$PWD")
+NETWORK_NAME="${PROJECT_NAME}_llm_net"
+IMAGE_NAME="${PROJECT_NAME}_ollama-cli"
+
+
+# --- Core Logic Function ---
+process_prompt() {
+  local original_prompt_string="$*" # Store the original prompt for retries
+
+  if [ -z "$original_prompt_string" ]; then
+    return # Do nothing if prompt is empty
+  fi
+
+  # Retry loop for this specific prompt
+  while true; do
+    echo
+    echo -e "\033[96mPrompt: \033[0m$original_prompt_string" # Display current prompt
+    echo -e "\033[94m🤖 Asking agent...\033[0m"
+
+    # 1. Get the command from the container
+    local GENERATED_COMMAND
+    GENERATED_COMMAND=$(docker run --rm \
+      --network "$NETWORK_NAME" \
+      -e "APP_PORT=${APP_PORT}" \
+      "$IMAGE_NAME" --agent-url "http://agent:${APP_PORT}" --get-command "$original_prompt_string") # Use original_prompt_string
+    local DOCKER_EXIT_CODE=$?
+
+    # Check for errors from the container
+    if [ $DOCKER_EXIT_CODE -ne 0 ]; then
+        echo
+        echo -e "\033[91m✗ The CLI tool failed inside the container (Exit Code: $DOCKER_EXIT_CODE).\033[0m"
+        echo -e "\033[93mThis often means it couldn't connect to the 'agent' service.\033[0m"
+        echo -e "  1. Ensure your services are running with: \033[1mdocker-compose up -d\033[0m"
+        echo -e "  2. Check the agent's logs for errors with: \033[1mdocker-compose logs agent\033[0m"
+        return # Exit process_prompt, no retry on agent failure
+    fi
+
+    if [ -z "$GENERATED_COMMAND" ]; then
+        echo
+        echo -e "\033[91m✗ Failed to get a command from the agent.\033[0m"
+        echo -e "\033[93mThe agent responded, but did not suggest a command to run.\033[0m"
+        echo -e "  - You can check the agent's logs for more details: \033[1mdocker-compose logs agent\033[0m"
+        return # Exit process_prompt, no retry on empty command
+    fi
+
+    echo -e "\033[92m📋 Generated command:\033[0m"
+    echo -e "\033[1m   $GENERATED_COMMAND\033[0m"
+    echo
+
+    # 2. Handle dry run (for non-interactive mode)
+    if [ "$DRY_RUN" = true ] && [ "$INTERACTIVE_MODE" = false ]; then
+      echo -e "\033[96m[DRY RUN] Command not executed.\033[0m"
+      return # Exit process_prompt
+    fi
+
+    # 3. Handle confirmation with 'Y/n/r'
+    local REPLY_CONFIRMATION
+    printf "\033[94mExecute this command on your host? [Y/n/r]: \033[0m"
+    read -r REPLY_CONFIRMATION
+    echo
+
+    case "$REPLY_CONFIRMATION" in
+      [yY]|"") # Yes or Enter (default)
+        echo -e "\033[92m🚀 Executing on host...\033[0m"
+        echo
+        eval "$GENERATED_COMMAND"
+        break # Exit the retry loop
+        ;;
+      [nN]) # No
+        echo -e "\033[93mCancelled.\033[0m"
+        break # Exit the retry loop
+        ;;
+      [rR]) # Retry
+        echo -e "\033[93mRetrying agent with the same prompt...\033[0m"
+        # Loop continues, re-asking the agent with original_prompt_string
+        ;;
+      *) # Invalid input, default to No for safety
+        echo -e "\033[93mInvalid input, cancelled.\033[0m"
+        break # Exit the retry loop
+        ;;
+    esac
+  done # End of retry loop for this prompt
+  echo # Add a newline after the process_prompt finishes
+}
+
+# --- Main Workflow ---
+
+# Run pre-flight checks once
+if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    echo -e "\033[91mError: Docker network '$NETWORK_NAME' not found.\033[0m"
+    echo "Please run 'docker-compose up -d' to create the network and services."
+    exit 1
+fi
+if ! docker inspect --type=image "$IMAGE_NAME" >/dev/null 2>&1; then
+    echo "Info: Docker image '$IMAGE_NAME' not found. Building it now..."
+    docker-compose build ollama-cli
+    if [ $? -ne 0 ]; then
+        echo -e "\033[91mError: Failed to build '$IMAGE_NAME'.\033[0m"
+        exit 1
+    fi
+fi
+echo -e "\033[95m\033[1mOllama Actions CLI\033[0m"
+
+
+if [ "$INTERACTIVE_MODE" = true ]; then
+  # --- Interactive Mode ---
+  echo -e "\033[92mEntering interactive mode. Type 'exit', 'quit', or Ctrl+D to leave.\033[0m"
+  while true; do
+    printf "\033[95mollama> \033[0m"
+    read -e user_input
+    read_status=$?
+
+    if [ "$read_status" -ne 0 ]; then # Check for EOF (Ctrl+D)
+        echo # Newline after Ctrl+D
+        break # Exit the loop
+    fi
+
+    # Save command to history
+    history -s "$user_input"
+
+    case "$user_input" in
+      exit|quit)
+        break
+        ;;
+      "" )
+        continue
+        ;;
+      *)
+        process_prompt "$user_input"
+        ;;
+    esac
+  done
+  echo -e "\033[92mExiting interactive mode.\033[0m"
+
+else
+  # --- Single Command Mode ---
+  if [ ${#PROMPT_ARGS[@]} -eq 0 ]; then
+    echo "Usage: ./ollama [--interactive] [--dry-run] [--yes] <prompt>"
+    echo "Example: ./ollama \"list all python files\""
+    exit 1
+  fi
+  process_prompt "${PROMPT_ARGS[@]}"
+fi
