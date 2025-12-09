@@ -32,7 +32,14 @@ TOTAL_TESTS=6
 # Get the project root directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OLLAMA_CLI="$PROJECT_ROOT/ollama"
+
+# In CI, use ollama-cli.py directly since services are already running
+# The ./ollama wrapper tries to run in a Docker container which doesn't work in CI
+if [ -n "$CI" ]; then
+    OLLAMA_CLI="python3 $PROJECT_ROOT/ollama-cli.py --agent-url http://localhost:8000"
+else
+    OLLAMA_CLI="$PROJECT_ROOT/ollama"
+fi
 
 # Function to print header
 print_header() {
@@ -77,15 +84,23 @@ cleanup_test_dirs() {
     rm -rf test_folder_cli_* 2>/dev/null || true
 }
 
-# Check if ollama CLI exists
-if [ ! -f "$OLLAMA_CLI" ]; then
-    echo -e "${RED}${BOLD}${CROSS} ERROR:${NC} ./ollama CLI not found at $OLLAMA_CLI"
-    exit 1
-fi
+# Check if ollama CLI exists (skip in CI mode where we use Python directly)
+if [ -z "$CI" ]; then
+    if [ ! -f "$OLLAMA_CLI" ]; then
+        echo -e "${RED}${BOLD}${CROSS} ERROR:${NC} ./ollama CLI not found at $OLLAMA_CLI"
+        exit 1
+    fi
 
-if [ ! -x "$OLLAMA_CLI" ]; then
-    echo -e "${RED}${BOLD}${CROSS} ERROR:${NC} ./ollama CLI is not executable"
-    exit 1
+    if [ ! -x "$OLLAMA_CLI" ]; then
+        echo -e "${RED}${BOLD}${CROSS} ERROR:${NC} ./ollama CLI is not executable"
+        exit 1
+    fi
+else
+    # In CI, verify ollama-cli.py exists
+    if [ ! -f "$PROJECT_ROOT/ollama-cli.py" ]; then
+        echo -e "${RED}${BOLD}${CROSS} ERROR:${NC} ollama-cli.py not found"
+        exit 1
+    fi
 fi
 
 # Cleanup before tests
