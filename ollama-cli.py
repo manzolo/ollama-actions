@@ -44,12 +44,16 @@ def load_config() -> Tuple[str, int]:
     return agent_url, app_port
 
 
-def call_agent(prompt: str, agent_url: str) -> Optional[dict]:
+def call_agent(prompt: str, agent_url: str, session_id: Optional[str] = None) -> Optional[dict]:
     """Call the agent API with a natural language prompt"""
     try:
+        payload = {"prompt": prompt}
+        if session_id:
+            payload["session_id"] = session_id
+
         response = requests.post(
             f"{agent_url}/chat",
-            json={"prompt": prompt},
+            json=payload,
             timeout=30
         )
         response.raise_for_status()
@@ -242,6 +246,12 @@ Examples:
         help='Only print the generated command to stdout and exit'
     )
 
+    parser.add_argument(
+        '--session-id',
+        type=str,
+        help='Session ID for conversation memory (allows context between prompts)'
+    )
+
     args = parser.parse_args()
 
     # Load configuration
@@ -259,7 +269,7 @@ Examples:
         # Call agent
         print(f"{Colors.OKBLUE}🤖 Asking agent...{Colors.ENDC}")
 
-    response = call_agent(args.prompt, agent_url)
+    response = call_agent(args.prompt, agent_url, session_id=args.session_id)
 
     if not response:
         sys.exit(1)

@@ -63,10 +63,15 @@ process_prompt() {
 
     # 1. Get the command from the container
     local GENERATED_COMMAND
-    GENERATED_COMMAND=$(docker run --rm \
-      --network "$NETWORK_NAME" \
-      -e "APP_PORT=${APP_PORT}" \
-      "$IMAGE_NAME" --agent-url "http://agent:${APP_PORT}" --get-command "$original_prompt_string" 2>&1) # Use original_prompt_string
+    # Build docker command with optional session ID for conversation memory
+    local DOCKER_CMD="docker run --rm --network \"$NETWORK_NAME\" -e \"APP_PORT=${APP_PORT}\" \"$IMAGE_NAME\" --agent-url \"http://agent:${APP_PORT}\" --get-command \"$original_prompt_string\""
+
+    # Add session ID if in interactive mode (enables conversation context)
+    if [ -n "$SESSION_ID" ]; then
+      DOCKER_CMD="$DOCKER_CMD --session-id \"$SESSION_ID\""
+    fi
+
+    GENERATED_COMMAND=$(eval "$DOCKER_CMD" 2>&1)
     local DOCKER_EXIT_CODE=$?
 
     # Check if the output is JSON (indicating an API action was already executed)
@@ -174,9 +179,40 @@ echo -e "\033[95m\033[1mOllama Actions CLI\033[0m"
 
 if [ "$INTERACTIVE_MODE" = true ]; then
   # --- Interactive Mode ---
+  # Generate a unique session ID for this interactive session to maintain conversation context
+  # Use timestamp, PID, and random number for uniqueness
+  SESSION_ID="interactive-$(date +%s)-$$-$RANDOM"
+
+  # Setup persistent command history
+  HISTORY_FILE="${HOME}/.ollama_history"
+  HISTORY_SIZE=1000
+
+  # Create history file if it doesn't exist
+  touch "$HISTORY_FILE"
+
+  # Enable history for this script and set the history file for readline
+  set -o history
+  export HISTFILE="$HISTORY_FILE"
+  export HISTSIZE="$HISTORY_SIZE"
+  export HISTFILESIZE="$HISTORY_SIZE"
+  export HISTCONTROL="ignoredups"  # Ignore consecutive duplicate entries
+  shopt -s histappend  # Append to history file, don't overwrite
+
+  # Load existing history from file
+  history -r "$HISTORY_FILE"
+
+  # Ensure cursor is visible
+  tput cnorm 2>/dev/null || true
+
   echo -e "\033[92mEntering interactive mode. Type 'exit', 'quit', or Ctrl+D to leave.\033[0m"
+  echo -e "\033[90m(Session ID: $SESSION_ID)\033[0m"
+  echo -e "\033[90mType 'help' for available commands. Use ↑/↓ arrows for history.\033[0m"
+  echo
+
   while true; do
-    read -e -r -p $'\033[95mollama> \033[0m' user_input
+    # Ensure cursor is visible before each prompt
+    printf '\033[?25h'
+    read -e -r -p $'\001\033[95m\002ollama> \001\033[0m\002' user_input
     read_status=$?
 
     if [ "$read_status" -ne 0 ]; then # Check for EOF (Ctrl+D)
@@ -184,21 +220,64 @@ if [ "$INTERACTIVE_MODE" = true ]; then
         break # Exit the loop
     fi
 
-    # Save command to history
-    history -s "$user_input"
+    # Skip empty input
+    if [ -z "$user_input" ]; then
+      continue
+    fi
 
     case "$user_input" in
       exit|quit)
+        # Remove from history before exiting
+        history -d -1 2>/dev/null
         break
         ;;
-      "" )
-        continue
+      history)
+        # Show command history (and remove this command from history)
+        history -d -1 2>/dev/null
+        echo -e "\033[96m=== Command History ===\033[0m"
+        history | tail -n 50
+        ;;
+      "clear history")
+        # Clear command history
+        history -c
+        > "$HISTORY_FILE"
+        echo -e "\033[93mHistory cleared.\033[0m"
+        ;;
+      clear)
+        # Clear conversation context (and remove this command from history)
+        history -d -1 2>/dev/null
+        # Send DELETE request to clear session
+        curl -s -X DELETE "http://localhost:${APP_PORT}/debug/session/${SESSION_ID}" > /dev/null 2>&1
+        # Generate new session ID
+        SESSION_ID="interactive-$(date +%s)-$$-$RANDOM"
+        echo -e "\033[93mConversation context cleared. New session: $SESSION_ID\033[0m"
+        ;;
+      help)
+        # Show help (and remove this command from history)
+        history -d -1 2>/dev/null
+        echo -e "\033[96m=== Ollama CLI Help ===\033[0m"
+        echo "Commands:"
+        echo "  history          - Show command history"
+        echo "  clear history    - Clear command history"
+        echo "  clear            - Clear conversation context (start fresh)"
+        echo "  help             - Show this help"
+        echo "  exit, quit       - Exit interactive mode"
+        echo ""
+        echo "Or type any natural language command to execute."
         ;;
       *)
+        # readline from 'read -e' already added to history, just process the prompt
         process_prompt "$user_input"
         ;;
     esac
   done
+
+  # Save final history to file
+  history -w "$HISTORY_FILE"
+
+  # Ensure cursor is visible on exit
+  printf '\033[?25h'
+
   echo -e "\033[92mExiting interactive mode.\033[0m"
 
 else
