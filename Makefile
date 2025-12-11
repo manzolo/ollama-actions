@@ -50,10 +50,12 @@ help:
 # Development commands
 build:
 	@echo "Building Docker containers..."
+	@mkdir -p .data
 	docker compose build
 
 up:
 	@echo "Starting services..."
+	@mkdir -p .data
 	docker compose up -d
 	@echo ""
 	@echo "Services started! Use 'make logs' to view logs or 'make status' to check status."

@@ -183,11 +183,13 @@ if [ "$INTERACTIVE_MODE" = true ]; then
   # Use timestamp, PID, and random number for uniqueness
   SESSION_ID="interactive-$(date +%s)-$$-$RANDOM"
 
-  # Setup persistent command history
-  HISTORY_FILE="${HOME}/.ollama_history"
+  # Setup persistent command history in project directory
+  HISTORY_DIR="${SCRIPT_DIR}/.data"
+  HISTORY_FILE="${HISTORY_DIR}/ollama_history"
   HISTORY_SIZE=1000
 
-  # Create history file if it doesn't exist
+  # Create history directory and file if they don't exist
+  mkdir -p "$HISTORY_DIR"
   touch "$HISTORY_FILE"
 
   # Enable history for this script and set the history file for readline

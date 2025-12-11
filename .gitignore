@@ -69,3 +69,4 @@ dmypy.json
 *.tmp
 *.temp
 .cache/
+.data/
